@@ -8,16 +8,19 @@ Athor: [Matt Scarpino](https://www.codeproject.com/script/Membership/View.aspx?m
 
 [The Code Project Open License (CPOL) 1.02](http://www.codeproject.com/info/cpol10.aspx)
 
+
 # An Introduction to XCB Programming
 Developing Low-Level Linux Applications with XCB (X protocol C-language Binding)
 
-## Introduction
+
+## 0. Introduction
 
 Years ago, I wrote graphical user interfaces (GUIs) for various platforms. For a Linux application, I tried to work with the X Window System library, commonly called Xlib. I was stunned by the amount of code required to perform simple tasks, and I decided to use a different toolset.
 
 Today, developers can develop low-level GUIs for the X Window System using XCB, which stands for X protocol C-language Binding. An XCB program can perform the same operations as one coded with Xlib, but requires substantially less code. In addition, XCB provides "latency hiding, direct access to the protocol, improved threading support, and extensibility."
 
 The goal of this article is to explain the basics of XCB application development. There are three central topics: creating a window, handling events, and drawing graphics. For each topic, I've provided a source file that demonstrates how the functions and data structures can be used in practice.
+
 
 ## 1. Preliminary Requirements
 
@@ -27,6 +30,7 @@ On Ubuntu and dreivatives, you can check it by following command in terminal.
 ```terminal
 sudo apt install libx11-xcb-dev
 ```
+
 
 ## 2. The X Window System
 
@@ -40,6 +44,7 @@ For each screen, the X server manages a window that occupies the entire area. Th
 
 Each resource managed by an X server has an identifier. Each display has a name and each screen has a number. Before an application can create a new window or resource, it needs to obtain a suitable ID.
 
+
 ## 3. Creating a Window
 
 Most XCB applications start by performing three fundamental tasks:
@@ -49,6 +54,7 @@ Most XCB applications start by performing three fundamental tasks:
 - Create and display a window in the screen
 
 The following discussion explains how these tasks can be accomplished. The last part of the section presents an application that displays a simple window for five seconds.
+
 
 ### 3.1  Connect to the X Server
 
@@ -128,6 +134,7 @@ printf("Screen dimensions: %d, %d\n", screen->width_in_pixels, screen->height_in
 
 Obtaining the screen is necessary to create the application's window. The following discussion explains how this can be done.
 
+
 ### 3.3  Create and Display the Window
 
 Now that we've accessed the screen, the next step is to create a window. The main function to use is xcb_create_window:
@@ -167,6 +174,7 @@ xcb_void_cookie_t xcb_map_window(xcb_connection_t *conn, xcb_window_t window)
 ```
 
 After calling xcb_map_window, it's common to call xcb_flush to force the window request to be sent to the server. The code in the following discussion demonstrates how this is used.
+
 
 ### 3.4  Example - Simple Window
 
@@ -232,3 +240,219 @@ mkdir build; gcc -o build/simple_window src/simple_window.c -lxcb
 
 Unless the user clicks the window's close button, the window will stay open for five seconds because of the sleep function. Without this function, the window will close immediately. Rather than call sleep, most XCB applications have an event loop. The following discussion explains how events work.
 
+
+## 4. Handling Events
+
+When the user performs an action involving a child window, such as clicking the mouse or pressing a key, the X server sends a message to the client application. The application can retrieve this message by calling xcb_wait_for_event:
+
+```c
+xcb_generic_event_t *xcb_wait_for_event(xcb_connection_t *c);
+```
+
+The xcb_generic_event_t structure has a field, response_type, that identifies which event took place. XCB supports over thirty different types of events, and six event codes are given as follows:
+
+- XCB_BUTTON_PRESS — mouse button pressed down
+- XCB_BUTTON_RELEASE — mouse button raised
+- XCB_MOTION_NOTIFY — mouse motion
+- XCB_KEY_PRESS — key pressed down
+- XCB_KEY_RELEASE — key released
+- XCB_EXPOSE — window displays content
+
+To configure event handling, the value_mask and value_list arguments of xcb_create_window must identify events of interest. To be specific, value_mask must be set to an OR'ed combination that contains XCB_CW_EVENT_MASK. The corresponding entry in value_list must contain an OR'ed combination that identifies which events the application should receive.
+
+For example, the following code configures the new window to pay attention to mouse clicks, key presses, and exposure events:
+
+```c
+value_mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
+
+value_list[0] = screen->white_pixel;
+
+value_list[1] = XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_KEY_PRESS | 
+                XCB_EVENT_MASK_EXPOSURE;
+```
+
+The first entry in value_list identifies the background color (which corresponds to XCB_BACK_PIXEL). The second entry contains an OR'ed combination of values that identify the events of interest.
+
+After a window has been configured to receive events, xcb_wait_for_event can be called to receive messages from the X server. This function halts the application until an event occurs, and is usually invoked in a loop:
+
+```c
+xcb_generic_event_t event;
+
+while((event = xcb_wait_for_event(conn)) ) {
+  switch (event->response_type) {
+
+  // Respond if the event is a key press
+  case XCB_KEY_PRESS:
+    ...
+    break;
+  
+ // Respond if the event is a mouse click
+  case XCB_BUTTON_PRESS:
+    ...
+    break;
+  
+  // Respond if the event is something else
+  default:
+    ...
+    break;
+
+  free (event);
+}
+```
+
+In this code, the while loop calls xcb_wait_for_event after each event is received and processed. This means the loop never terminates. It would be nice to have a "special quit event," as promised in the official XCB documentation. But I've never seen this used.
+
+Instead, it's common to insert a boolean value in the condition of the while loop. The loop will terminate when the value returns true. The example code at the end of this section will demonstrate how this works.
+
+
+### 4.1  Responding to Mouse Clicks
+
+If a user clicks a mouse button, the message from the X server can be accessed as a xcb_button_press_event_t, which contains fields related to the mouse event. Its fields include the following:
+
+- detail — the button pressed
+- time — the timestamp of the mouse click
+- event_x, event_y — event coordinates relative to the client window
+- root_x, root_y — event coordinates relative to the root window
+- root — ID of the root window
+- child — ID of the child window
+
+detail is a value of the xcb_button_index_t enumerated type, which has six values:
+
+1. XCB_BUTTON_INDEX_ANY — any mouse button
+2. XCB_BUTTON_INDEX_1 — the left mouse button
+3. XCB_BUTTON_INDEX_2 — the middle mouse button
+4. XCB_BUTTON_INDEX_3 — the right mouse button
+5. XCB_BUTTON_INDEX_4 — mouse scroll up
+6. XCB_BUTTON_INDEX_5 — mouse scroll down
+
+The following code shows how an application can access information about a mouse event:
+
+```c
+while((event = xcb_wait_for_event(conn)) ) {
+  switch(event->response_type) {
+    ...
+    case XCB_BUTTON_PRESS:
+      printf("Button pressed: %d\n", ((xcb_button_press_event_t*)event)->detail);
+      break;
+  }
+}
+```
+
+
+### 4.2  Responding to Key Presses
+
+If the user presses a key, the X server's event message can be accessed as a xcb_key_press_event_t, whose fields provide information related to the keystroke. These fields include the following:
+
+- detail — a value identifying the pressed key
+- time — the timestamp of the keypress
+- root — ID of the root window
+- child — ID of the child window
+
+You might expect that detail would identify the key using ASCII or Unicode. Alas, this is not the case. To determine the pressed key, an application needs to call functions from the xcb_keysyms.h header. These functions aren't documented and I can find few examples of their use. Therefore, this article won't explain them in any detail.
+
+
+### 4.3  Example - Event Window
+
+The code in event_window.c creates the same white window as in simple_window.c. The difference is that the application configures the window to receive events and then handles events in an event loop. The following code shows how the window is configured:
+
+```c
+  /* Create window */
+  window_id = xcb_generate_id(conn);
+  value_mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
+  value_list[0] = screen->white_pixel;
+  value_list[1] = XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_BUTTON_PRESS | 
+                  XCB_EVENT_MASK_KEY_PRESS;
+
+  xcb_create_window(conn, screen->root_depth, 
+     window_id, screen->root, 0, 0, 100, 100, 1,
+     XCB_WINDOW_CLASS_INPUT_OUTPUT, 
+     screen->root_visual, value_mask, value_list);
+```
+
+
+As shown, the values in value_mask specify that the window's background and event handling will be configured. The values in value_list specify that the background should be white and that the application should receive events related to mouse clicks, key presses, and exposure. The following code shows how these events are handled in an event loop.
+
+```c
+  /* Execute the event loop */
+  while (!finished && (event = xcb_wait_for_event(conn))) {
+
+    switch(event->response_type) {
+
+      /* Respond to key presses */
+      case XCB_KEY_PRESS:
+        printf("Keycode: %d\n", ((xcb_key_press_event_t*)event)->detail);
+        finished = 1;
+        break;
+
+      /* Respond to button presses */
+      case XCB_BUTTON_PRESS:
+        printf("Button pressed: %u\n", ((xcb_button_press_event_t*)event)->detail);
+        printf("X-coordinate: %u\n", ((xcb_button_press_event_t*)event)->event_x);
+        printf("Y-coordinate: %u\n", ((xcb_button_press_event_t*)event)->event_y);
+        break;
+
+      case XCB_EXPOSE:
+        break;
+    }
+    free(event);
+  }
+```
+
+If the user clicks a mouse button, the application prints the button number and the click's coordinates. If the user presses a key, the application prints the key code and sets finished to 1. When finished changes from 0 to 1, the while loop terminates and the application disconnects from the X server.
+
+
+## 5. Drawing Graphics
+
+Blank windows aren't particularly interesting. XCB makes it straightforward to add shapes to a window, and the process involves two steps:
+
+1. Create a graphics context
+2. Call one or more drawing primitives.
+
+This section discusses both steps. Then we'll look at an application that adds shapes to the simple window presented earlier.
+
+It's important to note that XCB doesn't have any functions that create GUI widgets like buttons or text boxes. If you want to build a traditional user interface, you're better off using tools like GTK+, FLTK, or Qt.
+
+
+### 5.1  Creating a Graphics Context
+
+A graphics context holds a window's graphic configuration, such as the font, line style, and foreground color. This structure can be created with xcb_create_gc:
+
+```c
+xcb_create_gc(xcb_connection_t *conn,
+              xcb_gcontext_t    context_id,
+              xcb_drawable_t    drawable,
+              uint32_t          value_mask,
+              const uint32_t   *value_list);
+```
+
+The context_id is a unique identifier for the context. It can be obtained by calling xcb_generate_id.
+
+The drawable parameter can be set equal to the screen's root window. This is provided by the root field of the xcb_screen_t structure discussed earlier.
+
+The last two arguments, value_mask and value_list, are similar to the value_mask and value_list arguments of xcb_create_window. The difference is that the property names are taken from the xcb_gc_t enumerated type, and the full list can be found here. 
+
+Two important properties of a graphic context involve the foreground color and exposure events. The context's foreground color can be set by adding XCB_GC_FOREGROUND to value_mask and by setting the first value of value_list to the appropriate color. In addition, the XCB_GC_GRAPHICS_EXPOSURES property configures whether the context generates exposure events. This can be turned on or off by setting the second value of value_list to 0 or 1. The following code shows how this works:
+
+```c
+value_mask = XCB_GC_FOREGROUND | XCB_GC_GRAPHICS_EXPOSURES;
+value_list[0] = s->black_pixel;
+value_list[1] = 0;
+```
+
+This sets the context's foreground color to black and turns off generation of exposure events. These settings will be used throughout this article.
+
+
+### 5.2  Drawing Primitives
+
+XCB provides eight functions that draw shapes in a window. These are called drawing primitives and Table 1 lists each of their signatures:
+
+|                                                                                         Function                                                                                        |                 Description                 |
+|:-------------------------------------------------------------------------------------------------------------------------------------------------------:|:----------------------------------------:|
+| xcb_poly_point(  xcb_connection_t *conn,  uint8_t coord_mode,  xcb_drawable_t window,  xcb_gcontext_t context_id,  uint32_t num_points,  const xcb_point_t *points)  | Draws one or more points                    |
+| xcb_poly_line(   xcb_connection_t *conn,   uint8_t coord_mode,   xcb_drawable_t window,   xcb_gcontext_t context_id,   uint32_t num_points,   const xcb_point_t *points)  | Draws connected lines between points        |
+| xcb_poly_segment(   xcb_connection_t *conn,  xcb_drawable_t window,   xcb_gcontext_t context_id,   uint32_t num_segments,   const xcb_segment_t *segments) | Draws distinct line segments                |
+| xcb_poly_rectangle(   xcb_connection_t *conn,   xcb_drawable_t window,   xcb_gcontext_t context_id,   uint32_t num_rects,   const xcb_rectangle_t *rects) | Draws one or more rectangles                |
+| xcb_poly_arc(   xcb_connection_t *conn,   xcb_drawable_t window,   xcb_gcontext_t context_id,   uint32_t num_arcs,   const xcb_segment_t *arcs)  | Draws one or more elliptical arcs           |
+| xcb_fill_poly(   xcb_connection_t *conn,   xcb_drawable_t window,   xcb_gcontext_t context_id,   uint8_t shape,   uint8_t coord_mode,   uint32_t num_points   const xcb_point_t *points) | Draws and fills a polygon                   |
+| xcb_poly_fill_rectangle(   xcb_connection_t *conn,   xcb_drawable_t window,   xcb_gcontext_t context_id,   uint32_t num_rects,   const xcb_rectangle_t *rects)  | Draws and fills one or more rectangles      |
+| xcb_poly_fill_arc(   xcb_connection_t *conn,   xcb_drawable_t window,   xcb_gcontext_t context_id,   uint32_t num_arcs,   const xcb_arc_t *arcs)   | Draws and fills one or more elliptical arcs |
