@@ -1,4 +1,5 @@
 # xcbintro
+
 An Introduction to XCB Programming by Matt Scarpino 
 
 [Based on codeproject.com article](https://www.codeproject.com/Articles/1089819/An-Introduction-to-XCB-Programming).
@@ -38,9 +39,9 @@ Each resource managed by an X server has an identifier. Each display has a name 
 
 Most XCB applications start by performing three fundamental tasks:
 
-    - Connect to the X Server
-    - Access a screen
-    - Create and display a window in the screen
+- Connect to the X Server
+- Access a screen
+- Create and display a window in the screen
 
 The following discussion explains how these tasks can be accomplished. The last part of the section presents an application that displays a simple window for five seconds.
 
@@ -87,12 +88,12 @@ const xcb_setup_t* xcb_get_setup(xcb_connection_t *c);
 
 The return value is an xcb_setup_t, which provides a number of useful fields, including the following:
 
-    - roots_len — the number of root windows managed by the X server
-    - bitmap_format_scanline_unit — the number of bits in a scanline unit
-    - bitmap_format_scanline_pad — the number of bits used to pad each scanline
-    - bitmap_format_bit_order — identifies whether the leftmost bit in the screen is the least significant bit or most significant bit
-    - protocol_major_version — major version of the supported X Window System protocol
-    - protocol_minor_version — minor version or the supported X Window System protocol
+ - roots_len — the number of root windows managed by the X server
+ - bitmap_format_scanline_unit — the number of bits in a scanline unit
+ - bitmap_format_scanline_pad — the number of bits used to pad each scanline
+ - bitmap_format_bit_order — identifies whether the leftmost bit in the screen is the least significant bit or most significant bit
+ - protocol_major_version — major version of the supported X Window System protocol
+ - protocol_minor_version — minor version or the supported X Window System protocol
 
 This xcb_setup_t is important because it allows us to access the X server's screens. This access is made possible by another function called xcb_setup_roots_iterator:
 
@@ -100,15 +101,15 @@ xcb_screen_iterator_t xcb_setup_roots_iterator(xcb_setup_t *set);
 
 The xcb_screen_iterator_t structure has a data field of type xcb_screen_t*, which represents a screen. The fields of this structure include the following:
 
-    - root — the root window ID
-    - root_depth — bits per pixel in the screen
-    - root_visual — pointer to a xcb_visualid_t structure containing the screen's color mapping
-    - width_in_pixels — screen width in pixels
-    - height_in_pixels — screen height in pixels
-    - width_in_millimeters — screen width in millimeters
-    - height_in_millimeters — screen height in millimeters
-    - black_pixel — value corresponding to the screen's black pixel
-    - white_pixel — value corresponding to the screen's white
+- root — the root window ID
+- root_depth — bits per pixel in the screen
+- root_visual — pointer to a xcb_visualid_t structure containing the screen's color mapping
+- width_in_pixels — screen width in pixels
+- height_in_pixels — screen height in pixels
+- width_in_millimeters — screen width in millimeters
+- height_in_millimeters — screen height in millimeters
+- black_pixel — value corresponding to the screen's black pixel
+- white_pixel — value corresponding to the screen's white
 
 The following code shows how these structures are used. It obtains an xcb_setup_t structure from an existing connection (conn), accesses the first screen, and prints the screen's dimensions in pixels:
 
@@ -212,13 +213,13 @@ int main(void) {
 
 There are at least three interesting points to notice about this code:
 
-    - The window's position is (0, 0) and its size is 100x100 pixels. This is configured by the arguments in xcb_create_window.
-    - The window's background color is set to white by associating the XCB_CW_BACK_PIXEL property with the value screen->white_pixel.
-    - This code doesn't explicitly close the window. Instead, it calls xcb_disconnect to terminate the connection to the X server.
+- The window's position is (0, 0) and its size is 100x100 pixels. This is configured by the arguments in xcb_create_window.
+- The window's background color is set to white by associating the XCB_CW_BACK_PIXEL property with the value screen->white_pixel.
+- This code doesn't explicitly close the window. Instead, it calls xcb_disconnect to terminate the connection to the X server.
 
 If XCB is installed on the development system, the source file can be compiled with the following command:
 
-```bash
+```console
 gcc -o simple_window simple_window.c -lxcb
 ```
 
