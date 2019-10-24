@@ -218,9 +218,9 @@ There are at least three interesting points to notice about this code:
 
 If XCB is installed on the development system, the source file can be compiled with the following command:
 
-````shell
+```bash
 gcc -o simple_window simple_window.c -lxcb
-````
+```
 
 Unless the user clicks the window's close button, the window will stay open for five seconds because of the sleep function. Without this function, the window will close immediately. Rather than call sleep, most XCB applications have an event loop. The following discussion explains how events work.
 
