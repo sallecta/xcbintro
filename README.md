@@ -38,9 +38,9 @@ Each resource managed by an X server has an identifier. Each display has a name 
 
 Most XCB applications start by performing three fundamental tasks:
 
-    Connect to the X Server
-    Access a screen
-    Create and display a window in the screen
+    - Connect to the X Server
+    - Access a screen
+    - Create and display a window in the screen
 
 The following discussion explains how these tasks can be accomplished. The last part of the section presents an application that displays a simple window for five seconds.
 
@@ -48,7 +48,9 @@ The following discussion explains how these tasks can be accomplished. The last 
 
 Whether you program in Xlib or XCB, an application's first step usually involves connecting to the X server. In XCB, the function to use is xcb_connect:
 
+```c
 xcb_connection_t* xcb_connect(const char *display, int *screen);
+````
 
 The first argument identifies the X server's display name. If this is set to NULL, the function will use the value of the DISPLAY environment variable.
 
@@ -56,12 +58,15 @@ The second argument points to a number for the screen that should be connected. 
 
 The xcb_connection_t structure is opaque, so there's no way to know whether the connection was created successfully. For this reason, XCB provides the function xcb_connection_has_error, whose declaration is given as follows:
 
+```c
 int xcb_connection_has_error(xcb_connection_t *c);
+````
 
 This accepts the xcb_connection_t* returned by xcb_connect and returns a value that identifies if the connection was established. An error will result in a non-zero value.
 
 The following code shows how these two functions can be used in practice:
 
+```c
 xcb_connection_t *conn;
 
 conn = xcb_connect(NULL, NULL);
@@ -70,7 +75,7 @@ if (xcb_connection_has_error(conn)) {
   printf("Error opening display.\n");
   exit(1);
 }
-
+````
 This code creates a connection to the X server whose name is given by the DISPLAY environment variable. The screen number is 0.
 
 
@@ -82,12 +87,12 @@ const xcb_setup_t* xcb_get_setup(xcb_connection_t *c);
 
 The return value is an xcb_setup_t, which provides a number of useful fields, including the following:
 
-    roots_len — the number of root windows managed by the X server
-    bitmap_format_scanline_unit — the number of bits in a scanline unit
-    bitmap_format_scanline_pad — the number of bits used to pad each scanline
-    bitmap_format_bit_order — identifies whether the leftmost bit in the screen is the least significant bit or most significant bit
-    protocol_major_version — major version of the supported X Window System protocol
-    protocol_minor_version — minor version or the supported X Window System protocol
+    - roots_len — the number of root windows managed by the X server
+    - bitmap_format_scanline_unit — the number of bits in a scanline unit
+    - bitmap_format_scanline_pad — the number of bits used to pad each scanline
+    - bitmap_format_bit_order — identifies whether the leftmost bit in the screen is the least significant bit or most significant bit
+    - protocol_major_version — major version of the supported X Window System protocol
+    - protocol_minor_version — minor version or the supported X Window System protocol
 
 This xcb_setup_t is important because it allows us to access the X server's screens. This access is made possible by another function called xcb_setup_roots_iterator:
 
@@ -95,15 +100,15 @@ xcb_screen_iterator_t xcb_setup_roots_iterator(xcb_setup_t *set);
 
 The xcb_screen_iterator_t structure has a data field of type xcb_screen_t*, which represents a screen. The fields of this structure include the following:
 
-    root — the root window ID
-    root_depth — bits per pixel in the screen
-    root_visual — pointer to a xcb_visualid_t structure containing the screen's color mapping
-    width_in_pixels — screen width in pixels
-    height_in_pixels — screen height in pixels
-    width_in_millimeters — screen width in millimeters
-    height_in_millimeters — screen height in millimeters
-    black_pixel — value corresponding to the screen's black pixel
-    white_pixel — value corresponding to the screen's white
+    - root — the root window ID
+    - root_depth — bits per pixel in the screen
+    - root_visual — pointer to a xcb_visualid_t structure containing the screen's color mapping
+    - width_in_pixels — screen width in pixels
+    - height_in_pixels — screen height in pixels
+    - width_in_millimeters — screen width in millimeters
+    - height_in_millimeters — screen height in millimeters
+    - black_pixel — value corresponding to the screen's black pixel
+    - white_pixel — value corresponding to the screen's white
 
 The following code shows how these structures are used. It obtains an xcb_setup_t structure from an existing connection (conn), accesses the first screen, and prints the screen's dimensions in pixels:
 
@@ -138,9 +143,10 @@ xcb_create_window(xcb_connection_t *conn,          // Connection to X server
 ```
 
 Most of the function's arguments are straightforward. window_id is a unique identifier for the window, and it can be obtained by calling xcb_generate_id, whose signature is as follows:
-Hide   Copy Code
 
+```c
 uint32_t xcb_generate_id(xcb_connection_t* conn)
+````
 
 parent_id can be set to the root field of the xcb_screen_t structure discussed earlier. Similarly, the visual argument can be set to the screen's root_visual field.
 
@@ -149,9 +155,10 @@ The function's class argument is set to a value of the xcb_window_class_t enumer
 The value_mask and value_list arguments are related. value_mask identifies an OR'ed series of property names and value_list contains their values. The property identifiers are taken from the xcb_cw_t type, whose values can be found here. One important property is XCB_CW_BACK_PIXEL, which sets the window's background color.
 
 After creating a window, xcb_map_window must be called to make it visible. The signature of this function is given as:
-Hide   Copy Code
 
+```c
 xcb_void_cookie_t xcb_map_window(xcb_connection_t *conn, xcb_window_t window) 
+```
 
 After calling xcb_map_window, it's common to call xcb_flush to force the window request to be sent to the server. The code in the following discussion demonstrates how this is used.
 
@@ -159,6 +166,7 @@ After calling xcb_map_window, it's common to call xcb_flush to force the window 
 
 The code in the simple_window.c file creates and displays a simple 100x100 pixel window. The main function is given as follows:
 
+```c
 int main(void) {
 
   xcb_connection_t   *conn;
@@ -200,17 +208,19 @@ int main(void) {
   xcb_disconnect(conn);
   return 0;
 }
-
+```
 
 There are at least three interesting points to notice about this code:
 
-    The window's position is (0, 0) and its size is 100x100 pixels. This is configured by the arguments in xcb_create_window.
-    The window's background color is set to white by associating the XCB_CW_BACK_PIXEL property with the value screen->white_pixel.
-    This code doesn't explicitly close the window. Instead, it calls xcb_disconnect to terminate the connection to the X server.
+    - The window's position is (0, 0) and its size is 100x100 pixels. This is configured by the arguments in xcb_create_window.
+    - The window's background color is set to white by associating the XCB_CW_BACK_PIXEL property with the value screen->white_pixel.
+    - This code doesn't explicitly close the window. Instead, it calls xcb_disconnect to terminate the connection to the X server.
 
 If XCB is installed on the development system, the source file can be compiled with the following command:
 
+````shell
 gcc -o simple_window simple_window.c -lxcb
+````
 
 Unless the user clicks the window's close button, the window will stay open for five seconds because of the sleep function. Without this function, the window will close immediately. Rather than call sleep, most XCB applications have an event loop. The following discussion explains how events work.
 
