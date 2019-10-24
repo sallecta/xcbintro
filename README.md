@@ -22,6 +22,11 @@ The goal of this article is to explain the basics of XCB application development
 ## 1. Preliminary Requirements
 
 Understanding the content of this article requires a basic familiarity with C programming. To compile the example code, you need to have the XCB library (libxcb.so) and header file (xcb.h) installed on your development system.
+On Ubuntu and dreivatives, you can check it by following command in terminal.
+
+```terminal
+sudo apt install libx11-xcb-dev
+```
 
 ## 2. The X Window System
 
@@ -163,11 +168,13 @@ xcb_void_cookie_t xcb_map_window(xcb_connection_t *conn, xcb_window_t window)
 
 After calling xcb_map_window, it's common to call xcb_flush to force the window request to be sent to the server. The code in the following discussion demonstrates how this is used.
 
-3.4  Example - Simple Window
+### 3.4  Example - Simple Window
 
 The code in the simple_window.c file creates and displays a simple 100x100 pixel window. The main function is given as follows:
 
 ```c
+#include <xcb/xcb.h>
+
 int main(void) {
 
   xcb_connection_t   *conn;
@@ -220,7 +227,7 @@ There are at least three interesting points to notice about this code:
 If XCB is installed on the development system, the source file can be compiled with the following command:
 
 ```console
-gcc -o simple_window simple_window.c -lxcb
+mkdir build; gcc -o build/simple_window src/simple_window.c -lxcb
 ```
 
 Unless the user clicks the window's close button, the window will stay open for five seconds because of the sleep function. Without this function, the window will close immediately. Rather than call sleep, most XCB applications have an event loop. The following discussion explains how events work.
