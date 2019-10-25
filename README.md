@@ -15,7 +15,7 @@ Developing Low-Level Linux Applications with XCB (X protocol C-language Binding)
 
 ## 0. Introduction
 
-Years ago, I wrote graphical user interfaces (GUIs) for various platforms. For a Linux application, I tried to work with the X Window System library, commonly called Xlib. I was stunned by the amount of code required to perform simple tasks, and I decided to use a different toolset.
+Years ago, I wrote graphical user interfaces (GUIs) for various platforms. For a Linux application, I tried to work with the X Window System library, commonly called [Xlib](http://www.x.org/releases/X11R7.7/doc/libX11/libX11/libX11.html). I was stunned by the amount of code required to perform simple tasks, and I decided to use a different toolset.
 
 Today, developers can develop low-level GUIs for the X Window System using XCB, which stands for X protocol C-language Binding. An XCB program can perform the same operations as one coded with Xlib, but requires substantially less code. In addition, XCB provides "latency hiding, direct access to the protocol, improved threading support, and extensibility."
 
@@ -36,7 +36,7 @@ sudo apt install libx11-xcb-dev
 
 Though Wayland and Mir are growing in popularity, the X Window System (also called X Windows or just X) remains the most common framework for managing windows on Linux computers. Originally developed by MIT in the 1980s, it has become widely adopted on UNIX and Linux computers, and it can be accessed on Windows computers through Cygwin. The goal of XCB and Xlib is to enable programmers to access the X Window System in their applications.
 
-When dealing with X, the first thing to understand is the difference between displays, screens, and windows. According to the official documentation, a display is a "collection of monitors that share a common keyboard and pointer." A screen identifies a physical monitor and a window is a graphical element drawn on a monitor. It's important to understand that a display can have multiple screens and each screen can have multiple windows.
+When dealing with X, the first thing to understand is the difference between displays, screens, and windows. According to the official [documentation](http://www.x.org/archive/X11R6.8.0/doc/X.7.html), a display is a "collection of monitors that share a common keyboard and pointer." A screen identifies a physical monitor and a window is a graphical element drawn on a monitor. It's important to understand that a display can have multiple screens and each screen can have multiple windows.
 
 The second thing to understand about X is its use of client-server communication. X supports remote displays, and given the usual client-server model, you might expect that the user's system receives display information from a remote X server. But that's not how X works. The X server runs on the user's computer and receives display information from client applications. In most cases, the client and server run on the same system.
 
@@ -235,7 +235,7 @@ There are at least three interesting points to notice about this code:
 If XCB is installed on the development system, the source file can be compiled with the following command:
 
 ```console
-mkdir build; gcc -o build/simple_window src/simple_window.c -lxcb
+mkdir --parents build; gcc -o build/simple_window src/simple_window.c -lxcb
 ```
 
 Unless the user clicks the window's close button, the window will stay open for five seconds because of the sleep function. Without this function, the window will close immediately. Rather than call sleep, most XCB applications have an event loop. The following discussion explains how events work.
@@ -300,7 +300,7 @@ while((event = xcb_wait_for_event(conn)) ) {
 }
 ```
 
-In this code, the while loop calls xcb_wait_for_event after each event is received and processed. This means the loop never terminates. It would be nice to have a "special quit event," as promised in the official XCB documentation. But I've never seen this used.
+In this code, the while loop calls xcb_wait_for_event after each event is received and processed. This means the loop never terminates. It would be nice to have a "special quit event," as promised in the official [XCB documentation](https://xcb.freedesktop.org/tutorial/events/). But I've never seen this used.
 
 Instead, it's common to insert a boolean value in the condition of the while loop. The loop will terminate when the value returns true. The example code at the end of this section will demonstrate how this works.
 
@@ -591,9 +591,9 @@ After calling the drawing primitives, the event loop calls xcb_flush to force th
 The src folder contains the three source files mentioned in this article. The code can be compiled with the following commands:
 
 ```console
-mkdir build; gcc -o build/simple_window src/simple_window.c -lxcb
-mkdir build; gcc -o build/event_window src/event_window.c -lxcb
-mkdir build; gcc -o build/graphic_window src/graphic_window.c -lxcb
+mkdir --parents build; gcc -o build/simple_window src/simple_window.c -lxcb
+mkdir --parents build; gcc -o build/event_window src/event_window.c -lxcb
+mkdir --parents build; gcc -o build/graphic_window src/graphic_window.c -lxcb
 ```
 
 Of course, the applications will only execute properly if XCB has been installed on the system.
