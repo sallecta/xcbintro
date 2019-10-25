@@ -598,16 +598,21 @@ mkdir build; gcc -o build/graphic_window src/graphic_window.c -lxcb
 
 Of course, the applications will only execute properly if XCB has been installed on the system.
 
+
 ## History
 
 4/5/2016 - Initial article submission
+
 
 ## License
 
 This article, along with any associated source code and files, is licensed under [The Code Project Open License (CPOL)](http://www.codeproject.com/info/cpol10.aspx)
 
+
 ## About the Author
+
 [Matt Scarpino](https://www.codeproject.com/Members/mattscar)
+
 United States 
 
 
