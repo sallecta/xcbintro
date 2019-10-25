@@ -456,3 +456,165 @@ XCB provides eight functions that draw shapes in a window. These are called draw
 | xcb_fill_poly(   xcb_connection_t *conn,   xcb_drawable_t window,   xcb_gcontext_t context_id,   uint8_t shape,   uint8_t coord_mode,   uint32_t num_points   const xcb_point_t *points) | Draws and fills a polygon                   |
 | xcb_poly_fill_rectangle(   xcb_connection_t *conn,   xcb_drawable_t window,   xcb_gcontext_t context_id,   uint32_t num_rects,   const xcb_rectangle_t *rects)  | Draws and fills one or more rectangles      |
 | xcb_poly_fill_arc(   xcb_connection_t *conn,   xcb_drawable_t window,   xcb_gcontext_t context_id,   uint32_t num_arcs,   const xcb_arc_t *arcs)   | Draws and fills one or more elliptical arcs |
+
+Many of these functions have a coord_mode argument that specifies how the shape's coordinates should be interpreted. This can be set to one of two values:
+
+- XCB_COORD_MODE_ORIGIN — All coordinate pairs are given relative to the origin (0, 0)
+- XCB_COORD_MODE_PREVIOUS — Each coordinate pair is given relative to the preceding coordinate pair
+
+The last argument of each drawing primitive contains an array of structures that represent different shapes (points, segments, rectangles, and arcs). The following discussion explores each of these shapes.
+
+
+#### 5.2.1  Points, Lines, and Polygons
+
+Many of the functions define their shapes using points. Each point must be given as an xcb_point_t structure, which has two integer fields: x and y. For example, the following code shows how xcb_poly_point can be called.
+
+```c
+xcb_point_t points[4] = { {40, 40}, {40, 80}, {80, 40}, {80, 80} };
+xcb_poly_point(conn, XCB_COORD_MODE_ORIGIN, window_id, context_id, 4, points);
+```
+
+The xcb_poly_line and xcb_fill_poly functions work in essentially the same way. The following code calls xcb_fill_poly to create a filled pentagon:
+
+```c
+xcb_point_t points[5] = { {11, 24}, {30, 10}, {49, 24}, {42, 46}, {18, 46} }; 
+xcb_fill_poly(conn, window_id, context_id, XCB_POLY_SHAPE_CONVEX, 
+              XCB_COORD_MODE_ORIGIN, 5, points);
+```
+
+This code sets the shape argument of xcb_fill_poly to XCB_POLY_SHAPE_CONVEX. Other values include XCB_POLY_SHAPE_NONCONVEX and XCB_POLY_SHAPE_COMPLEX.
+
+
+#### 5.2.2  Line Segments
+
+It's important to understand the difference between xcb_poly_line and xcb_poly_segment. The first accepts an array of points and draws a line from each point to the next. In contrast, the lines drawn by xcb_poly_segment aren't necessarily connected.
+
+The last argument of xcb_poly_segment is an array of xcb_segment_t structures. This structure has four integer fields: x1, y1, x2, y2. Therefore, each segment connects (x1, y1) to (x2, y2). The following code shows how this works:
+
+```c
+xcb_segment_t segments[2] = { {60, 20, 90, 40}, {60, 40, 90, 20} }; 
+xcb_poly_segment(conn, window_id, context_id, 2, segments);
+```
+
+
+#### 5.2.3  Rectangles
+
+xcb_poly_rectangle and xcb_poly_fill_rectangle both accept an array of xcb_rectangle_t structures. This structure has four fields: x, y, width, and height. The x and y fields identify the coordinates of the rectangle's upper-left corner. For example, the following code draws and fills a 30x20 pixel rectangle whose upper left corner is at (15, 65).
+
+```c
+xcb_rectangle_t rect = {15, 65, 30, 20};
+xcb_poly_fill_rectangle(conn, window_id, context_id, 1, &rect);
+```
+
+#### 5.2.4  Arcs
+
+xcb_poly_arc and xcb_poly_fill_arc both accept xcb_arc_t structures. The xcb_arc_t structure represents an arc of an ellipse, and has six fields:
+
+- x — the x-coordinate of the upper-left corner of the rectangle containing the ellipse
+- y — the y-coordinate of the upper-left corner of the rectangle containing the ellipse
+- width — the width of the ellipse
+- height — the height of the ellipse
+- angle1 — the starting angle of the arc, given in 1/64s of a degree
+- angle2 — the ending angle of the arc, given in 1/64s of a degree
+
+The following code draws the upper-half of an ellipse whose rectangle has an upper-left corner at (60, 70) and has dimensions 30x20 pixels:
+
+```c
+xcb_arc_t arc = {60, 70, 30, 20, 0, 180 << 6};
+xcb_poly_arc(conn, window_id, context_id, 1, &arc);
+```
+It's important to see that the angles are given in 1/64s of a degree. This is why the second angle, which is meant to equal 180 degrees, is given as 180 << 6.
+
+#### 5.2.5  Drawing Primitives and Exposure Events
+
+To work properly, drawing primitives must be executed after the window has been drawn. This can be accomplished by calling the functions after an exposure event takes place. The code in the following discussion will demonstrate how this works.
+
+
+### 5.3  Example - Graphic Window
+
+The code in graphic_window.c expands on the code in event_window.c by defining a series of shape structures and calling drawing primitives. The shapes are defined with the following code:
+
+```c
+xcb_point_t points[5] = { {11, 24}, {30, 10}, {49, 24}, {42, 46}, {18, 46} }; 
+xcb_segment_t segments[2] = { {60, 20, 90, 40}, {60, 40, 90, 20} };
+xcb_rectangle_t rect = {15, 65, 30, 20};
+xcb_arc_t arc = {60, 70, 30, 20, 0, 180 << 6};
+```
+
+The following code in graphic_window.c shows how drawing primitives can be called inside of the event loop. Each exposure event draws a pentagon, two line segments, a rectangle, and an elliptical arc.
+
+```c
+  /* Execute the event loop */
+  while (!finished && (event = xcb_wait_for_event(conn))) {
+
+    switch(event->response_type) {
+
+      case XCB_KEY_PRESS:
+        printf("Keycode: %d\n", ((xcb_key_press_event_t*)event)->detail);
+        finished = 1;
+        break;
+
+      case XCB_BUTTON_PRESS:
+        printf("Button pressed: %u\n", ((xcb_button_press_event_t*)event)->detail);
+        printf("X-coordinate: %u\n", ((xcb_button_press_event_t*)event)->event_x);
+        printf("Y-coordinate: %u\n", ((xcb_button_press_event_t*)event)->event_y);
+        break;
+
+      case XCB_EXPOSE:
+
+        /* Draw polygon */
+        xcb_fill_poly(conn, window_id, context_id, XCB_POLY_SHAPE_CONVEX, 
+                      XCB_COORD_MODE_ORIGIN, 5, points);
+
+        /* Draw line segments */
+        xcb_poly_segment(conn, window_id, context_id, 2, segments);
+
+        /* Draw rectangle */
+        xcb_poly_fill_rectangle(conn, window_id, context_id, 1, &rect);
+
+        /* Draw arc */
+        xcb_poly_arc(conn, window_id, context_id, 1, &arc);
+
+        xcb_flush(conn);
+        break;
+
+    }
+    free(event);
+  }
+```
+
+After calling the drawing primitives, the event loop calls xcb_flush to force the drawing requests to be sent to the X server.
+
+
+## Using the Code
+
+The src folder contains the three source files mentioned in this article. The code can be compiled with the following commands:
+
+```console
+mkdir build; gcc -o build/simple_window src/simple_window.c -lxcb
+mkdir build; gcc -o build/event_window src/event_window.c -lxcb
+mkdir build; gcc -o build/graphic_window src/graphic_window.c -lxcb
+```
+
+Of course, the applications will only execute properly if XCB has been installed on the system.
+
+## History
+
+4/5/2016 - Initial article submission
+
+## License
+
+This article, along with any associated source code and files, is licensed under [The Code Project Open License (CPOL)](http://www.codeproject.com/info/cpol10.aspx)
+
+## About the Author
+[Matt Scarpino](https://www.codeproject.com/Members/mattscar)
+United States 
+
+
+
+
+
+
+
+
+
